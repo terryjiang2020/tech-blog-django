@@ -28,6 +28,7 @@ urlpatterns = [
     path('login', LoginUser.as_view(), name='login'),
     path('logout', LogoutUser.as_view(), name='logout'),
     path('user', include('user.urls')),
+    path('chat/', include('chat.urls')),
 ]
 
 if settings.DEBUG:

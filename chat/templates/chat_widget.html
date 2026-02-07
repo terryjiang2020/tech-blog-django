@@ -1,0 +1,412 @@
+{% load static %}
+
+<style>
+    .chat-widget {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+    }
+
+    .chat-button {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+
+    .chat-button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .chat-button i {
+        color: white;
+        font-size: 24px;
+    }
+
+    .chat-panel {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 350px;
+        height: 500px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        z-index: 999;
+    }
+
+    .chat-panel.active {
+        display: flex;
+        animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .chat-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .chat-header-title {
+        font-weight: 600;
+        font-size: 16px;
+    }
+
+    .chat-close {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        font-size: 20px;
+        padding: 0;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        background: #f5f5f5;
+    }
+
+    .chat-message {
+        margin-bottom: 12px;
+        display: flex;
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .chat-message.user {
+        justify-content: flex-end;
+    }
+
+    .chat-message-content {
+        max-width: 75%;
+        padding: 10px 14px;
+        border-radius: 18px;
+        word-wrap: break-word;
+    }
+
+    .chat-message.bot .chat-message-content {
+        background: white;
+        color: #333;
+        border-bottom-left-radius: 4px;
+    }
+
+    .chat-message.user .chat-message-content {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+
+    .chat-input-container {
+        padding: 16px;
+        background: white;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .chat-input-form {
+        display: flex;
+        gap: 8px;
+    }
+
+    .chat-input {
+        flex: 1;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+        padding: 10px 16px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.3s;
+    }
+
+    .chat-input:focus {
+        border-color: #667eea;
+    }
+
+    .chat-send-button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s;
+    }
+
+    .chat-send-button:hover {
+        transform: scale(1.05);
+    }
+
+    .chat-send-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .chat-typing {
+        display: none;
+        padding: 10px 14px;
+        background: white;
+        border-radius: 18px;
+        max-width: 60px;
+    }
+
+    .chat-typing.active {
+        display: block;
+    }
+
+    .typing-dots {
+        display: flex;
+        gap: 4px;
+    }
+
+    .typing-dot {
+        width: 8px;
+        height: 8px;
+        background: #999;
+        border-radius: 50%;
+        animation: typing 1.4s infinite;
+    }
+
+    .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @keyframes typing {
+        0%, 60%, 100% {
+            transform: translateY(0);
+        }
+        30% {
+            transform: translateY(-10px);
+        }
+    }
+
+    @media (max-width: 480px) {
+        .chat-panel {
+            width: calc(100vw - 40px);
+            height: calc(100vh - 100px);
+        }
+    }
+</style>
+
+<div class="chat-widget">
+    <button class="chat-button" id="chatButton" aria-label="Open chat">
+        <i class="fas fa-comments"></i>
+    </button>
+
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+            <div class="chat-header-title">CandyCode Assistant</div>
+            <button class="chat-close" id="chatClose" aria-label="Close chat">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="chat-message bot">
+                <div class="chat-message-content">
+                    Hello! I'm CandyCode Assistant. How can I help you today?
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <form class="chat-input-form" id="chatForm">
+                <input
+                    type="text"
+                    class="chat-input"
+                    id="chatInput"
+                    placeholder="Type a message..."
+                    autocomplete="off"
+                >
+                <button type="submit" class="chat-send-button" id="chatSendButton">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const chatButton = document.getElementById('chatButton');
+        const chatPanel = document.getElementById('chatPanel');
+        const chatClose = document.getElementById('chatClose');
+        const chatForm = document.getElementById('chatForm');
+        const chatInput = document.getElementById('chatInput');
+        const chatMessages = document.getElementById('chatMessages');
+        const chatSendButton = document.getElementById('chatSendButton');
+
+        let sessionId = localStorage.getItem('chat_session_id') || null;
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        chatButton.addEventListener('click', function() {
+            chatPanel.classList.add('active');
+            chatButton.style.display = 'none';
+            chatInput.focus();
+        });
+
+        chatClose.addEventListener('click', function() {
+            chatPanel.classList.remove('active');
+            chatButton.style.display = 'flex';
+        });
+
+        function addMessage(content, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${type}`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'chat-message-content';
+            contentDiv.textContent = content;
+
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTyping() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'chat-message bot';
+            typingDiv.id = 'typingIndicator';
+
+            const typingContent = document.createElement('div');
+            typingContent.className = 'chat-typing active';
+
+            const dotsDiv = document.createElement('div');
+            dotsDiv.className = 'typing-dots';
+            dotsDiv.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+
+            typingContent.appendChild(dotsDiv);
+            typingDiv.appendChild(typingContent);
+            chatMessages.appendChild(typingDiv);
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function hideTyping() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        chatForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            addMessage(message, 'user');
+            chatInput.value = '';
+            chatSendButton.disabled = true;
+
+            showTyping();
+
+            try {
+                const csrftoken = getCookie('csrftoken');
+                const response = await fetch('/chat/send/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        session_id: sessionId
+                    })
+                });
+
+                const data = await response.json();
+
+                hideTyping();
+
+                if (data.success) {
+                    if (!sessionId) {
+                        sessionId = data.session_id;
+                        localStorage.setItem('chat_session_id', sessionId);
+                    }
+
+                    addMessage(data.bot_response.content, 'bot');
+                } else {
+                    addMessage('Sorry, something went wrong. Please try again.', 'bot');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                hideTyping();
+                addMessage('Sorry, I encountered an error. Please try again.', 'bot');
+            } finally {
+                chatSendButton.disabled = false;
+                chatInput.focus();
+            }
+        });
+
+        chatInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                chatForm.dispatchEvent(new Event('submit'));
+            }
+        });
+    })();
+</script>
