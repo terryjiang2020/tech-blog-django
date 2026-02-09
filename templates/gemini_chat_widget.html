@@ -1,0 +1,412 @@
+{% load static %}
+
+<style>
+    .gemini-chat-widget {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        z-index: 1000;
+    }
+
+    .gemini-chat-button {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4285f4 0%, #34a853 50%, #fbbc05 75%, #ea4335 100%);
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+
+    .gemini-chat-button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .gemini-chat-button i {
+        color: white;
+        font-size: 24px;
+    }
+
+    .gemini-chat-panel {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        width: 350px;
+        height: 500px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        z-index: 999;
+    }
+
+    .gemini-chat-panel.active {
+        display: flex;
+        animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .gemini-chat-header {
+        background: linear-gradient(135deg, #4285f4 0%, #34a853 50%, #fbbc05 75%, #ea4335 100%);
+        color: white;
+        padding: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .gemini-chat-header-title {
+        font-weight: 600;
+        font-size: 16px;
+    }
+
+    .gemini-chat-close {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        font-size: 20px;
+        padding: 0;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .gemini-chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        background: #f5f5f5;
+    }
+
+    .gemini-chat-message {
+        margin-bottom: 12px;
+        display: flex;
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .gemini-chat-message.user {
+        justify-content: flex-end;
+    }
+
+    .gemini-chat-message-content {
+        max-width: 75%;
+        padding: 10px 14px;
+        border-radius: 18px;
+        word-wrap: break-word;
+    }
+
+    .gemini-chat-message.bot .gemini-chat-message-content {
+        background: white;
+        color: #333;
+        border-bottom-left-radius: 4px;
+    }
+
+    .gemini-chat-message.user .gemini-chat-message-content {
+        background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+
+    .gemini-chat-input-container {
+        padding: 16px;
+        background: white;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .gemini-chat-input-form {
+        display: flex;
+        gap: 8px;
+    }
+
+    .gemini-chat-input {
+        flex: 1;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+        padding: 10px 16px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.3s;
+    }
+
+    .gemini-chat-input:focus {
+        border-color: #4285f4;
+    }
+
+    .gemini-chat-send-button {
+        background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+        border: none;
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s;
+    }
+
+    .gemini-chat-send-button:hover {
+        transform: scale(1.05);
+    }
+
+    .gemini-chat-send-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .gemini-chat-typing {
+        display: none;
+        padding: 10px 14px;
+        background: white;
+        border-radius: 18px;
+        max-width: 60px;
+    }
+
+    .gemini-chat-typing.active {
+        display: block;
+    }
+
+    .gemini-typing-dots {
+        display: flex;
+        gap: 4px;
+    }
+
+    .gemini-typing-dot {
+        width: 8px;
+        height: 8px;
+        background: #999;
+        border-radius: 50%;
+        animation: typing 1.4s infinite;
+    }
+
+    .gemini-typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .gemini-typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @keyframes typing {
+        0%, 60%, 100% {
+            transform: translateY(0);
+        }
+        30% {
+            transform: translateY(-10px);
+        }
+    }
+
+    @media (max-width: 480px) {
+        .gemini-chat-panel {
+            width: calc(100vw - 40px);
+            height: calc(100vh - 100px);
+        }
+    }
+</style>
+
+<div class="gemini-chat-widget">
+    <button class="gemini-chat-button" id="geminiChatButton" aria-label="Open Gemini chat">
+        <i class="fas fa-robot"></i>
+    </button>
+
+    <div class="gemini-chat-panel" id="geminiChatPanel">
+        <div class="gemini-chat-header">
+            <div class="gemini-chat-header-title">Gemini Assistant</div>
+            <button class="gemini-chat-close" id="geminiChatClose" aria-label="Close chat">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="gemini-chat-messages" id="geminiChatMessages">
+            <div class="gemini-chat-message bot">
+                <div class="gemini-chat-message-content">
+                    Hello! I'm Gemini Assistant. How can I help you today?
+                </div>
+            </div>
+        </div>
+
+        <div class="gemini-chat-input-container">
+            <form class="gemini-chat-input-form" id="geminiChatForm">
+                <input
+                    type="text"
+                    class="gemini-chat-input"
+                    id="geminiChatInput"
+                    placeholder="Type a message..."
+                    autocomplete="off"
+                >
+                <button type="submit" class="gemini-chat-send-button" id="geminiChatSendButton">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const geminiChatButton = document.getElementById('geminiChatButton');
+        const geminiChatPanel = document.getElementById('geminiChatPanel');
+        const geminiChatClose = document.getElementById('geminiChatClose');
+        const geminiChatForm = document.getElementById('geminiChatForm');
+        const geminiChatInput = document.getElementById('geminiChatInput');
+        const geminiChatMessages = document.getElementById('geminiChatMessages');
+        const geminiChatSendButton = document.getElementById('geminiChatSendButton');
+
+        let sessionId = localStorage.getItem('gemini_chat_session_id') || null;
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        geminiChatButton.addEventListener('click', function() {
+            geminiChatPanel.classList.add('active');
+            geminiChatButton.style.display = 'none';
+            geminiChatInput.focus();
+        });
+
+        geminiChatClose.addEventListener('click', function() {
+            geminiChatPanel.classList.remove('active');
+            geminiChatButton.style.display = 'flex';
+        });
+
+        function addMessage(content, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `gemini-chat-message ${type}`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'gemini-chat-message-content';
+            contentDiv.textContent = content;
+
+            messageDiv.appendChild(contentDiv);
+            geminiChatMessages.appendChild(messageDiv);
+
+            geminiChatMessages.scrollTop = geminiChatMessages.scrollHeight;
+        }
+
+        function showTyping() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'gemini-chat-message bot';
+            typingDiv.id = 'geminiTypingIndicator';
+
+            const typingContent = document.createElement('div');
+            typingContent.className = 'gemini-chat-typing active';
+
+            const dotsDiv = document.createElement('div');
+            dotsDiv.className = 'gemini-typing-dots';
+            dotsDiv.innerHTML = '<span class="gemini-typing-dot"></span><span class="gemini-typing-dot"></span><span class="gemini-typing-dot"></span>';
+
+            typingContent.appendChild(dotsDiv);
+            typingDiv.appendChild(typingContent);
+            geminiChatMessages.appendChild(typingDiv);
+
+            geminiChatMessages.scrollTop = geminiChatMessages.scrollHeight;
+        }
+
+        function hideTyping() {
+            const typingIndicator = document.getElementById('geminiTypingIndicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        geminiChatForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const message = geminiChatInput.value.trim();
+            if (!message) return;
+
+            addMessage(message, 'user');
+            geminiChatInput.value = '';
+            geminiChatSendButton.disabled = true;
+
+            showTyping();
+
+            try {
+                const csrftoken = getCookie('csrftoken');
+                const response = await fetch('/chat/gemini/send/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        session_id: sessionId
+                    })
+                });
+
+                const data = await response.json();
+
+                hideTyping();
+
+                if (data.success) {
+                    if (!sessionId) {
+                        sessionId = data.session_id;
+                        localStorage.setItem('gemini_chat_session_id', sessionId);
+                    }
+
+                    addMessage(data.bot_response.content, 'bot');
+                } else {
+                    addMessage('Sorry, something went wrong. Please try again.', 'bot');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                hideTyping();
+                addMessage('Sorry, I encountered an error. Please try again.', 'bot');
+            } finally {
+                geminiChatSendButton.disabled = false;
+                geminiChatInput.focus();
+            }
+        });
+
+        geminiChatInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                geminiChatForm.dispatchEvent(new Event('submit'));
+            }
+        });
+    })();
+</script>
