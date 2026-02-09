@@ -8,6 +8,12 @@ import uuid
 from openai import OpenAI
 from .models import ChatSession, ChatMessage
 
+from elasticdash import get_client
+ 
+elasticdash = get_client()
+
+# All spans are automatically closed when exiting their context blocks
+
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 def get_or_create_session(session_id, user):
@@ -63,14 +69,23 @@ Keep responses concise (2-3 sentences typically) and friendly."""
             "content": user_message
         })
 
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=messages,
-            max_tokens=200,
-            temperature=0.7
-        )
-
-        return response.choices[0].message.content
+        # Create a span using a context manager
+        with elasticdash.start_as_current_observation(as_type="span", name="process-request") as span:
+            span.update(input=messages)
+        
+            # Create a nested generation for an LLM call
+            with elasticdash.start_as_current_observation(as_type="generation", name="llm-response", model="gpt-3.5-turbo") as generation:
+                generation.update(input=messages)
+                # Your LLM call logic here
+                response = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=messages,
+                    max_tokens=200,
+                    temperature=0.7
+                )
+                generation.update(output=response.choices[0].message.content)
+                span.update(output=response.choices[0].message.content)
+                return response.choices[0].message.content
 
     except Exception as e:
         print(f"OpenAI API Error: {e}")
